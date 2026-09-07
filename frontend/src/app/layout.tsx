@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import Chatbot from '@/components/Chatbot';
 
 export const metadata: Metadata = {
   title: 'TourismOS — AI Tourism Ecosystem',
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-400">
           <p>AI Tourism Ecosystem &copy; {new Date().getFullYear()} &bull; Next.js 14 + FastAPI + PostgreSQL 15</p>
         </footer>
+        <Chatbot />
       </body>
     </html>
   );
