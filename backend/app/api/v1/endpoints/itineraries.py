@@ -2,13 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
-import json
 
 from app.core.database import get_async_session
 from app.models.itinerary import Itinerary
 from app.models.destination import Destination
 from app.schemas.itinerary import ItineraryGenerateRequest, ItineraryRead
-from app.services.itinerary_generator import generate_itinerary
+from app.services.gemini_generator import generate_itinerary_gemini
 
 router = APIRouter(prefix="/itineraries", tags=["Itineraries"])
 
@@ -27,8 +26,8 @@ async def generate(
     if payload.duration_days < 1 or payload.duration_days > 30:
         raise HTTPException(status_code=422, detail="duration_days must be between 1 and 30")
 
-    # Generate itinerary data
-    data = generate_itinerary(
+    # Call AI Generator (Gemini + fallback)
+    data = await generate_itinerary_gemini(
         destination_name=destination.name,
         destination_id=str(destination.id),
         duration_days=payload.duration_days,

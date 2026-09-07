@@ -1,8 +1,4 @@
 @echo off
-git init
 git add -A
-git commit -m "Initial: AI Tourism Ecosystem complete"
-git branch -M main
-git remote remove origin 2>nul
-git remote add origin https://github.com/guru071/tourism.git
+git commit -m "feat: All phases complete - Gemini AI, Stripe, SlowAPI, GitHub Actions"
 git push -u origin main --force

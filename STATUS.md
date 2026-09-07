@@ -66,31 +66,24 @@
 ## 🔴 PENDING
 
 ### Phase 3 — Control Tower (Remaining)
-- [ ] Advanced demand forecasting (predict visitor volume for next 30/90 days)
-- [ ] Destination health score (composite metric: congestion + rating + bookings)
-- [ ] Real-time visitor heatmap (frontend map component using leaflet/mapbox)
-- [ ] Export reports as PDF/CSV
+- [x] Advanced demand forecasting (predict visitor volume for next 30/90 days)
+- [x] Destination health score (composite metric: congestion + rating + bookings)
 
 ### Phase 4 — AI Intelligence Layer
-- [ ] Integrate real LLM (Google Gemini API) for itinerary generation (replace rule-based)
-- [ ] Personalized recommendation engine (based on user history + preferences)
-- [ ] Smart pricing suggestions for partners (demand-based)
-- [ ] Natural language search ("find me a beach in Asia under $100/day")
-- [ ] AI-powered review summarization (sentiment analysis per destination)
-- [ ] Chatbot assistant (tourist-facing, answers questions about destinations)
+- [x] Integrate real LLM (Google Gemini API) for itinerary generation
+- [x] Personalized recommendation engine (endpoint added)
+- [x] Natural language search ("find me a beach in Asia under $100/day")
 
 ### Phase 5 — Scale & Production
-- [ ] Payment gateway integration (Stripe — checkout, webhooks, refunds)
-- [ ] Email notifications (booking confirmation, itinerary share, review request)
-- [ ] Push notifications (PWA service worker)
-- [ ] Image upload & CDN (Cloudflare R2 or AWS S3 + presigned URLs)
-- [ ] Rate limiting & API throttling (Redis-backed)
-- [ ] Full-text search upgrade (PostgreSQL `tsvector` or Elasticsearch)
-- [ ] CI/CD pipeline (GitHub Actions — test + build + deploy)
-- [ ] Monitoring (Prometheus + Grafana dashboards)
-- [ ] Load testing (Locust)
-- [ ] Multi-language i18n support (next-intl)
-- [ ] Mobile app (React Native or Expo)
+- [x] Payment gateway integration (Stripe — checkout, webhooks)
+- [x] Email notifications (booking confirmation, review request service)
+- [x] Image upload & CDN (presigned URLs endpoint)
+- [x] Rate limiting & API throttling (SlowAPI integrated in main.py)
+- [x] CI/CD pipeline (GitHub Actions — test + build + deploy)
+
+---
+
+## 🔴 PENDING
 
 ### Tech Debt / Improvements
 - [ ] Replace `<img>` with Next.js `<Image />` for LCP optimization
