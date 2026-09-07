@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { fetchDestinations, generateItinerary, type Destination, type DestinationFilters } from '@/lib/api';
+import Image from 'next/image';
 import { MapPin, Star, Search, Loader2, AlertCircle } from 'lucide-react';
 
 const CATEGORIES = ['All', 'Beach', 'Mountain', 'Cultural', 'Adventure', 'City', 'Wildlife'];
@@ -33,11 +34,13 @@ function DestinationCard({ dest, index }: { dest: Destination; index: number }) 
     <div className="group relative flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-lg transition-all overflow-hidden">
       <Link href={`/destinations/${dest.id}`} className="block">
         <div className="relative h-48 overflow-hidden bg-slate-100">
-          <img
+          <Image
             src={img}
             alt={dest.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-            onError={(e) => { (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length]; }}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={(e) => { (e.target as HTMLImageElement).srcset = ''; (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length]; }}
           />
           {dest.category && (
             <span className="absolute top-3 left-3 rounded-full bg-white/90 backdrop-blur px-2.5 py-0.5 text-xs font-semibold text-emerald-700">

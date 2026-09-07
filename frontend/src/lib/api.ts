@@ -216,6 +216,22 @@ export async function fetchRevenue() {
   return apiFetch<unknown[]>('/control-tower/revenue');
 }
 
+export async function fetchUsers() {
+  return apiFetch<User[]>('/users');
+}
+
+export async function updateUserRole(userId: string, role: string) {
+  return apiFetch<Record<string, unknown>>(`/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) });
+}
+
+export async function updateUserStatus(userId: string, isActive: boolean) {
+  return apiFetch<Record<string, unknown>>(`/users/${userId}/status`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) });
+}
+
+export async function verifyOperator(operatorId: string, status: string) {
+  return apiFetch<Record<string, unknown>>(`/operators/${operatorId}/verify`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
 // ─── Partners ────────────────────────────────────────────────────────────────
 export async function getMyOperator() {
   return apiFetch<Record<string, unknown>>('/operators/my');

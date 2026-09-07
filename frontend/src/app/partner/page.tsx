@@ -209,11 +209,13 @@ export default function PartnerDashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      const myBookings = await apiFetch<Booking[]>('/bookings/my').catch(() => []);
-      setBookings(myBookings);
-
       const myOp = await apiFetch<OperatorProfile>('/operators/my');
       setOperator(myOp);
+
+      if (myOp && myOp.id) {
+        const opBookings = await apiFetch<Booking[]>(`/bookings?operator_id=${myOp.id}`);
+        setBookings(opBookings);
+      }
     } catch (err) {
       // Operator profile doesn't exist yet
     } finally {
@@ -402,8 +404,11 @@ export default function PartnerDashboard() {
         {/* Bookings Tab */}
         {activeTab === 'bookings' && (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
               <h2 className="font-bold text-slate-900">All Bookings ({bookings.length})</h2>
+              {bookings.length >= 20 && (
+                <div className="text-xs text-slate-500">Showing last 20 bookings</div>
+              )}
             </div>
             {bookings.length === 0 ? (
               <div className="text-center py-16 text-slate-400">
@@ -416,6 +421,7 @@ export default function PartnerDashboard() {
                   <thead>
                     <tr className="text-left text-xs text-slate-500 border-b border-slate-100 bg-slate-50">
                       <th className="px-6 py-3 font-semibold">Reference</th>
+                      <th className="px-6 py-3 font-semibold">Listing</th>
                       <th className="px-6 py-3 font-semibold">Dates</th>
                       <th className="px-6 py-3 font-semibold">Guests</th>
                       <th className="px-6 py-3 font-semibold">Total</th>
@@ -428,7 +434,8 @@ export default function PartnerDashboard() {
                       return (
                         <tr key={b.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-6 py-4 font-mono font-medium text-slate-800">{b.booking_reference}</td>
-                          <td className="px-6 py-4 text-slate-600">{b.start_date} → {b.end_date}</td>
+                          <td className="px-6 py-4 text-slate-600 truncate max-w-[150px]">{b.listing_title}</td>
+                          <td className="px-6 py-4 text-slate-600 whitespace-nowrap">{b.start_date} → {b.end_date}</td>
                           <td className="px-6 py-4 text-slate-600">{b.guests_count}</td>
                           <td className="px-6 py-4 font-semibold text-slate-700">${b.total_price.toFixed(0)}</td>
                           <td className="px-6 py-4">

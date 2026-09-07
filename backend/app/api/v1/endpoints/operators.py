@@ -142,3 +142,28 @@ async def create_operator(
     await session.commit()
     await session.refresh(op)
     return {"id": str(op.id), "business_name": op.business_name, "verification_status": op.verification_status}
+
+@router.patch("/{operator_id}/verify")
+async def verify_operator(
+    operator_id: str,
+    payload: dict,
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin only: Verify or reject an operator profile."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+        
+    status = payload.get("status")
+    if status not in ("approved", "rejected", "pending"):
+        raise HTTPException(status_code=400, detail="Invalid verification status")
+
+    result = await session.execute(select(Operator).where(Operator.id == operator_id))
+    op = result.scalar_one_or_none()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operator not found")
+
+    op.verification_status = status
+    op.verified = (status == "approved")
+    await session.commit()
+    return {"status": "success", "operator_id": str(op.id), "verification_status": op.verification_status, "verified": op.verified}

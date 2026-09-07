@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { fetchDestination, generateItinerary, type Destination, type Itinerary } from '@/lib/api';
 import { MapPin, ArrowLeft, Loader2, Calendar, Wallet, Sparkles, AlertCircle } from 'lucide-react';
 
@@ -145,7 +146,7 @@ export default function DestinationDetailPage() {
     <div className="min-h-screen bg-white">
       {/* Hero */}
       <div className="relative h-72 sm:h-96 overflow-hidden bg-slate-900">
-        <img src={heroImg} alt={destination.name} className="h-full w-full object-cover opacity-70" />
+        <Image src={heroImg} alt={destination.name} fill sizes="100vw" className="object-cover opacity-70" priority />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
         <div className="absolute bottom-6 left-6 text-white">
           <Link href="/" className="inline-flex items-center gap-1 text-xs text-white/80 hover:text-white mb-2">

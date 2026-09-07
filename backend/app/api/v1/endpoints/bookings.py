@@ -99,6 +99,42 @@ async def my_bookings(
     ]
 
 
+@router.get("")
+async def list_bookings(
+    operator_id: str = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in ("partner", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    stmt = select(Booking, Listing).join(Listing, Booking.listing_id == Listing.id)
+    
+    if operator_id:
+        stmt = stmt.where(Listing.operator_id == operator_id)
+
+    stmt = stmt.order_by(Booking.created_at.desc()).limit(limit).offset(offset)
+    results = (await session.execute(stmt)).all()
+    
+    return [
+        {
+            "id": str(b.id),
+            "booking_reference": b.booking_reference,
+            "listing_id": str(l.id),
+            "listing_title": l.title,
+            "status": b.status,
+            "start_date": str(b.start_date),
+            "end_date": str(b.end_date),
+            "guests_count": b.guests_count,
+            "total_price": float(b.total_price),
+            "currency": b.currency,
+        }
+        for b, l in results
+    ]
+
+
 @router.get("/{booking_id}")
 async def get_booking(
     booking_id: str,
