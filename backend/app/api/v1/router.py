@@ -13,6 +13,7 @@ from app.api.v1.endpoints import recommendations
 from app.api.v1.endpoints import uploads
 from app.api.v1.endpoints import payments
 from app.api.v1.endpoints import users
+from app.api.v1.endpoints import chat
 
 api_v1_router = APIRouter()
 
@@ -42,4 +43,5 @@ api_v1_router.include_router(recommendations.router)
 api_v1_router.include_router(uploads.router)
 api_v1_router.include_router(payments.router)
 api_v1_router.include_router(users.router)
+api_v1_router.include_router(chat.router)
 

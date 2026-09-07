@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { fetchDestination, generateItinerary, type Destination, type Itinerary } from '@/lib/api';
-import { MapPin, ArrowLeft, Loader2, Calendar, Wallet, Sparkles, AlertCircle } from 'lucide-react';
+import { MapPin, ArrowLeft, Loader2, Calendar, Wallet, Sparkles, AlertCircle, Compass, Clock, Banknote, Lightbulb } from 'lucide-react';
 
 const TRAVEL_STYLES = ['Relaxed', 'Cultural', 'Adventure', 'Luxury'];
 const BUDGET_LEVELS = ['Budget', 'Mid-range', 'Luxury'];
@@ -16,10 +16,10 @@ function ItineraryView({ itinerary }: { itinerary: Itinerary }) {
       <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white">
         <h2 className="text-xl font-bold">{itinerary.title}</h2>
         {itinerary.summary && <p className="mt-1 text-emerald-100 text-sm">{itinerary.summary}</p>}
-        <div className="mt-3 flex flex-wrap gap-4 text-sm text-emerald-100">
-          <span>📅 {itinerary.duration_days} days</span>
-          <span>🎯 {itinerary.travel_style}</span>
-          <span>💰 {itinerary.budget_level}</span>
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-emerald-100">
+          <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> {itinerary.duration_days} days</span>
+          <span className="flex items-center gap-1"><Compass className="h-4 w-4" /> {itinerary.travel_style}</span>
+          <span className="flex items-center gap-1"><Wallet className="h-4 w-4" /> {itinerary.budget_level}</span>
           <span className="font-semibold text-white">Est. Total: ${itinerary.total_estimated_cost_usd.toFixed(0)}</span>
         </div>
       </div>
@@ -48,18 +48,19 @@ function ItineraryView({ itinerary }: { itinerary: Itinerary }) {
                 <div className="flex-1">
                   <h4 className="font-semibold text-slate-900 text-sm">{act.title}</h4>
                   <p className="text-xs text-slate-500 mt-0.5">{act.description}</p>
-                  <div className="flex gap-4 mt-1 text-xs text-slate-400">
-                    <span>⏱ {act.duration_hours}h</span>
-                    <span>💵 ${act.estimated_cost_usd.toFixed(0)}</span>
-                    {act.category && <span className="capitalize">#{act.category}</span>}
+                  <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-slate-400" /> {act.duration_hours}h</span>
+                    <span className="flex items-center gap-1"><Banknote className="h-3.5 w-3.5 text-slate-400" /> ${act.estimated_cost_usd.toFixed(0)}</span>
+                    {act.category && <span className="capitalize px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">{act.category}</span>}
                   </div>
                 </div>
               </div>
             ))}
           </div>
           {day.tips && (
-            <div className="bg-amber-50 border-t border-amber-100 px-5 py-3 text-xs text-amber-800">
-              💡 <strong>Tip:</strong> {day.tips}
+            <div className="bg-slate-50 border-t border-slate-100 px-5 py-3 text-xs text-slate-600 flex gap-2">
+              <Lightbulb className="h-4 w-4 text-amber-500 flex-shrink-0" />
+              <div><strong className="text-slate-900 font-medium">Tip:</strong> {day.tips}</div>
             </div>
           )}
         </div>

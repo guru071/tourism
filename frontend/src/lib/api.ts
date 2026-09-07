@@ -245,3 +245,24 @@ export async function getOperatorBookings(operatorId: string) {
   // Mock fetching partner bookings
   return apiFetch<unknown[]>(`/bookings?operator_id=${operatorId}`);
 }
+
+// ─── Chat Assistant ──────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  content: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+}
+
+export async function sendChatMessage(
+  message: string,
+  history: ChatMessage[] = []
+): Promise<ChatResponse> {
+  return apiFetch<ChatResponse>('/chat', {
+    method: 'POST',
+    body: JSON.stringify({ message, history }),
+  });
+}
