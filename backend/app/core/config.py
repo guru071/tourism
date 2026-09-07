@@ -1,5 +1,5 @@
 import json
-from typing import List, Union
+from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,6 +26,18 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-1.5-flash"
     AI_FALLBACK_TO_RULES: bool = True  # Use rule-based if Gemini fails/no key
+
+    # Phase 5 — Storage (AWS S3 / Cloudflare R2)
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_REGION: str = "us-east-1"
+    S3_BUCKET_NAME: Optional[str] = None
+    S3_ENDPOINT_URL: Optional[str] = None
+    S3_PUBLIC_URL_PREFIX: Optional[str] = None
+
+    # Phase 5 — Email Service (SendGrid)
+    SENDGRID_API_KEY: str = ""
+    SENDGRID_FROM_EMAIL: str = "noreply@tourism.ai"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

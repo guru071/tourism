@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, desc
 from typing import Optional
 import re
 import json
@@ -20,6 +20,7 @@ def _make_slug(name: str) -> str:
 @router.get("", response_model=DestinationList)
 async def list_destinations(
     q: Optional[str] = Query(None, description="Search query"),
+    query: Optional[str] = Query(None, description="Search query alias"),
     category: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
     min_rating: Optional[float] = Query(None, ge=0, le=5),
@@ -29,25 +30,39 @@ async def list_destinations(
 ):
     stmt = select(Destination).where(Destination.is_active == True)
 
-    if q:
-        search = f"%{q}%"
+    search_term = None
+    if isinstance(query, str) and query.strip():
+        search_term = query.strip()
+    elif isinstance(q, str) and q.strip():
+        search_term = q.strip()
+
+    if search_term:
+        query = search_term
+        ts_vector = func.to_tsvector('english', Destination.name + ' ' + Destination.description)
         stmt = stmt.where(
-            or_(
-                Destination.name.ilike(search),
-                Destination.country.ilike(search),
-                Destination.city.ilike(search),
-                Destination.description.ilike(search),
-            )
+            func.to_tsvector('english', Destination.name + ' ' + Destination.description).match(query)
         )
-    if category:
-        stmt = stmt.where(Destination.category == category)
-    if country:
-        stmt = stmt.where(Destination.country.ilike(f"%{country}%"))
+        rank = func.ts_rank(ts_vector, func.plainto_tsquery('english', query))
+    else:
+        query = None
+
+    if isinstance(category, str) and category.strip():
+        stmt = stmt.where(Destination.category == category.strip())
+    if isinstance(country, str) and country.strip():
+        stmt = stmt.where(func.lower(Destination.country) == country.strip().lower())
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = (await session.execute(count_stmt)).scalar_one()
 
-    stmt = stmt.order_by(Destination.name).limit(limit).offset(offset)
+    if query:
+        stmt = stmt.order_by(desc(rank), Destination.name)
+    else:
+        stmt = stmt.order_by(Destination.name)
+
+    page_limit = limit if isinstance(limit, int) else 20
+    page_offset = offset if isinstance(offset, int) else 0
+
+    stmt = stmt.limit(page_limit).offset(page_offset)
     results = (await session.execute(stmt)).scalars().all()
 
     items = []
@@ -55,7 +70,7 @@ async def list_destinations(
         item = DestinationRead.model_validate(d)
         items.append(item)
 
-    return DestinationList(items=items, total=total, limit=limit, offset=offset)
+    return DestinationList(items=items, total=total, limit=page_limit, offset=page_offset)
 
 
 @router.post("/search-nl", response_model=list[DestinationRead])

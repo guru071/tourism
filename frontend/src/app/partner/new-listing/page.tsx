@@ -20,7 +20,10 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  CloudUpload,
   Compass,
+  Copy,
+  CopyCheck,
   DollarSign,
   Eye,
   Globe,
@@ -43,6 +46,7 @@ import {
   Star,
   Ticket,
   Trash2,
+  Upload,
   UserCheck,
   Users,
   Utensils,
@@ -175,10 +179,24 @@ export default function CreateListingPage() {
   const [instantBooking, setInstantBooking] = useState(true);
   const [cancellationPolicy, setCancellationPolicy] = useState('flexible');
 
-  // Imagery
+  // Imagery & Cloud Asset Management
+  const [image_urls, setImageUrls] = useState<string[]>([SAMPLE_PRESETS[0].url]);
   const [primaryImage, setPrimaryImage] = useState(SAMPLE_PRESETS[0].url);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [newGalleryInput, setNewGalleryInput] = useState('');
+  const [uploadQueue, setUploadQueue] = useState<
+    {
+      id: string;
+      name: string;
+      size: number;
+      progress: number;
+      status: 'requesting' | 'uploading' | 'success' | 'error';
+      errorMessage?: string;
+    }[]
+  >([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [copiedUrlIndex, setCopiedUrlIndex] = useState<number | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Amenities
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
@@ -301,19 +319,161 @@ export default function CreateListingPage() {
     setSelectedAmenities((prev) => prev.filter((a) => a !== label));
   }
 
-  // Gallery image helpers
-  function addGalleryImage(e: React.FormEvent) {
+  // ─── Image & File Upload Helpers (Direct Presigned PUT Protocol) ───────────
+
+  async function handleFilesUpload(files: FileList | File[]) {
+    const fileArray = Array.from(files);
+    if (!fileArray.length) return;
+
+    for (const file of fileArray) {
+      if (!file.type.startsWith('image/')) {
+        setFormError(`File "${file.name}" is not a supported image format. Please upload PNG, JPEG, WEBP, or AVIF.`);
+        continue;
+      }
+
+      const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const newItem = {
+        id: uploadId,
+        name: file.name,
+        size: file.size,
+        progress: 25,
+        status: 'requesting' as const,
+      };
+
+      setUploadQueue((prev) => [newItem, ...prev]);
+
+      try {
+        const storedToken = localStorage.getItem('auth_token');
+
+        // 1. Call backend POST /api/v1/uploads to get real presigned URL
+        const presignRes = await fetch(`${API_BASE}/uploads`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            content_type: file.type || 'image/jpeg',
+          }),
+        });
+
+        if (!presignRes.ok) {
+          const errData = await presignRes.json().catch(() => ({}));
+          throw new Error(errData.detail || `Upload preparation failed (${presignRes.status})`);
+        }
+
+        const presignData = await presignRes.json();
+        const uploadUrl = presignData.upload_url;
+        const publicUrl = presignData.public_url;
+
+        if (!uploadUrl || !publicUrl) {
+          throw new Error('Storage service returned invalid upload metadata.');
+        }
+
+        setUploadQueue((prev) =>
+          prev.map((item) =>
+            item.id === uploadId ? { ...item, progress: 65, status: 'uploading' } : item
+          )
+        );
+
+        // 2. PUT binary directly to cloud storage URL
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+          },
+          body: file,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error(`Direct binary upload failed with HTTP status ${uploadRes.status}`);
+        }
+
+        // 3. Append resulting public URL to image_urls state
+        setImageUrls((prev) => {
+          if (prev.length === 1 && prev[0] === SAMPLE_PRESETS[0].url) {
+            return [publicUrl];
+          }
+          return [...prev, publicUrl];
+        });
+
+        // Synchronize cover image & gallery list
+        setPrimaryImage((prev) => {
+          if (!prev || prev === SAMPLE_PRESETS[0].url) return publicUrl;
+          return prev;
+        });
+        setGalleryImages((prev) => [...prev, publicUrl]);
+
+        setUploadQueue((prev) =>
+          prev.map((item) =>
+            item.id === uploadId ? { ...item, progress: 100, status: 'success' } : item
+          )
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Media upload transmission failed.';
+        setUploadQueue((prev) =>
+          prev.map((item) =>
+            item.id === uploadId ? { ...item, status: 'error', errorMessage: msg } : item
+          )
+        );
+      }
+    }
+  }
+
+  function removeImageUrl(idx: number) {
+    setImageUrls((prev) => {
+      const targetUrl = prev[idx];
+      const next = prev.filter((_, i) => i !== idx);
+      if (next.length === 0) {
+        setPrimaryImage('');
+      } else if (primaryImage === targetUrl) {
+        setPrimaryImage(next[0] || '');
+      }
+      return next;
+    });
+    setGalleryImages((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function setCoverImage(url: string) {
+    setPrimaryImage(url);
+    setImageUrls((prev) => {
+      const filtered = prev.filter((u) => u !== url);
+      return [url, ...filtered];
+    });
+  }
+
+  function copyToClipboard(url: string, index: number) {
+    navigator.clipboard.writeText(url);
+    setCopiedUrlIndex(index);
+    setTimeout(() => setCopiedUrlIndex(null), 2000);
+  }
+
+  function clearCompletedUploads() {
+    setUploadQueue((prev) => prev.filter((item) => item.status !== 'success'));
+  }
+
+  function addManualImageUrl(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = newGalleryInput.trim();
     if (!trimmed) return;
+    if (!image_urls.includes(trimmed)) {
+      setImageUrls((prev) => [...prev, trimmed]);
+      if (!primaryImage) setPrimaryImage(trimmed);
+    }
     if (!galleryImages.includes(trimmed)) {
       setGalleryImages((prev) => [...prev, trimmed]);
     }
     setNewGalleryInput('');
   }
 
+  // Legacy gallery helper support
+  function addGalleryImage(e: React.FormEvent) {
+    addManualImageUrl(e);
+  }
+
   function removeGalleryImage(idx: number) {
-    setGalleryImages((prev) => prev.filter((_, i) => i !== idx));
+    removeImageUrl(idx);
   }
 
   // ─── Form Submission ──────────────────────────────────────────────────────
@@ -361,7 +521,7 @@ export default function CreateListingPage() {
           description: `Partner-listed destination for ${customDestName}`,
           latitude: latitude ? parseFloat(latitude) : undefined,
           longitude: longitude ? parseFloat(longitude) : undefined,
-          image_urls: primaryImage ? [primaryImage] : [],
+          image_urls: image_urls.length > 0 ? image_urls : [primaryImage || SAMPLE_PRESETS[0].url],
           tags: [category, 'partner-created'],
         });
 
@@ -375,8 +535,8 @@ export default function CreateListingPage() {
         return;
       }
 
-      // Compile images
-      const allImages = [primaryImage, ...galleryImages].filter(Boolean);
+      // Compile images from image_urls state
+      const allImages = image_urls.length > 0 ? image_urls : [primaryImage, ...galleryImages].filter(Boolean);
 
       // Build payload for POST /api/v1/listings
       const payload = {
@@ -493,7 +653,10 @@ export default function CreateListingPage() {
                 setTitle('');
                 setDescription('');
                 setBasePrice('');
+                setImageUrls([SAMPLE_PRESETS[0].url]);
+                setPrimaryImage(SAMPLE_PRESETS[0].url);
                 setGalleryImages([]);
+                setUploadQueue([]);
               }}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
             >
@@ -1113,7 +1276,7 @@ export default function CreateListingPage() {
               </div>
             </section>
 
-            {/* ─── SECTION 5: VISUAL IMAGERY ─── */}
+            {/* ─── SECTION 5: VISUAL IMAGERY & FILE UPLOAD ─── */}
             <section
               id="media"
               className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm"
@@ -1125,7 +1288,7 @@ export default function CreateListingPage() {
                     Visual Imagery & Media Gallery
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    High-definition photography directly elevates traveler conversion across the platform.
+                    Upload high-resolution photography directly to Aventis Cloud Storage to maximize traveler booking conversions.
                   </p>
                 </div>
                 <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
@@ -1134,87 +1297,289 @@ export default function CreateListingPage() {
               </div>
 
               <div className="space-y-6">
-                {/* Primary Cover Image */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                    Primary Cover Image URL <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      required
-                      value={primaryImage}
-                      onChange={(e) => setPrimaryImage(e.target.value)}
-                      placeholder="https://images.unsplash.com/..."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                    />
+                {/* Protocol Info Note */}
+                <div className="rounded-2xl bg-emerald-50/50 border border-emerald-100 p-4 flex items-start gap-3">
+                  <CloudUpload className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-600 leading-relaxed">
+                    <span className="font-semibold text-slate-800">Direct Presigned Cloud Uploads: </span>
+                    Files are negotiated via backend authentication (POST /api/v1/uploads), then streamed directly into cloud object storage via signed binary PUT requests. Uploaded URLs automatically register into the listing payload.
                   </div>
                 </div>
 
-                {/* Preset Quick Fill Samples */}
+                {/* Drag-and-Drop Upload Zone */}
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider">
-                    Quick Sample Photography Presets:
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {SAMPLE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.name}
-                        type="button"
-                        onClick={() => setPrimaryImage(preset.url)}
-                        className={`px-3 py-2 rounded-xl text-xs font-medium border text-left truncate transition-all ${
-                          primaryImage === preset.url
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-                            : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'
-                        }`}
-                      >
-                        {preset.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Gallery Additional URLs */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                    Additional Gallery Images ({galleryImages.length})
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    Upload Listing Photography <span className="text-rose-500">*</span>
                   </label>
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="url"
-                      value={newGalleryInput}
-                      onChange={(e) => setNewGalleryInput(e.target.value)}
-                      placeholder="Paste additional image URL and click Add"
-                      className="flex-1 rounded-xl border border-slate-200 px-4 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                    multiple
+                    onChange={(e) => {
+                      if (e.target.files) handleFilesUpload(e.target.files);
+                      e.target.value = '';
+                    }}
+                    className="hidden"
+                  />
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      if (e.dataTransfer.files) handleFilesUpload(e.dataTransfer.files);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative flex flex-col items-center justify-center p-8 sm:p-10 rounded-2xl border-2 border-dashed transition-all cursor-pointer ${
+                      isDragging
+                        ? 'border-emerald-500 bg-emerald-50/70 scale-[1.01] shadow-inner'
+                        : 'border-slate-300 hover:border-emerald-500 bg-slate-50/60 hover:bg-emerald-50/20'
+                    }`}
+                  >
+                    <div className="h-14 w-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-3 shadow-xs">
+                      <CloudUpload className="h-7 w-7" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-800 text-center">
+                      Drag and drop photography files here, or click to browse
+                    </p>
+                    <p className="text-xs text-slate-500 text-center mt-1 max-w-md">
+                      Accepts PNG, JPEG, WEBP, or AVIF (up to 15MB per file). Uses direct-to-cloud presigned PUT binary streaming.
+                    </p>
                     <button
                       type="button"
-                      onClick={addGalleryImage}
-                      className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors inline-flex items-center gap-1"
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add
+                      <Upload className="h-3.5 w-3.5" />
+                      Browse Local Files
                     </button>
                   </div>
+                </div>
 
-                  {galleryImages.length > 0 && (
-                    <div className="space-y-2">
-                      {galleryImages.map((img, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-600"
+                {/* Upload Queue Progress */}
+                {uploadQueue.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Upload Transfers ({uploadQueue.length})
+                      </h4>
+                      {uploadQueue.some((item) => item.status === 'success') && (
+                        <button
+                          type="button"
+                          onClick={clearCompletedUploads}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 transition-colors"
                         >
-                          <span className="truncate max-w-[80%]">{img}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeGalleryImage(idx)}
-                            className="text-rose-500 hover:text-rose-700 p-1"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          Dismiss Completed
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2.5">
+                      {uploadQueue.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs"
+                        >
+                          <div className="flex items-center justify-between text-xs mb-1.5">
+                            <span className="font-semibold text-slate-800 truncate max-w-[60%]">
+                              {item.name}{' '}
+                              <span className="font-normal text-slate-400">
+                                ({(item.size / (1024 * 1024)).toFixed(2)} MB)
+                              </span>
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {item.status === 'requesting' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                  <Loader2 className="h-3 w-3 animate-spin text-amber-600" />
+                                  Negotiating URL...
+                                </span>
+                              )}
+                              {item.status === 'uploading' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                                  <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                                  Streaming PUT...
+                                </span>
+                              )}
+                              {item.status === 'success' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                  Stored in Cloud
+                                </span>
+                              )}
+                              {item.status === 'error' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                  <AlertCircle className="h-3 w-3 text-rose-600" />
+                                  Failed
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full transition-all duration-300 ${
+                                item.status === 'error'
+                                  ? 'bg-rose-500'
+                                  : item.status === 'success'
+                                  ? 'bg-emerald-500'
+                                  : 'bg-emerald-600'
+                              }`}
+                              style={{ width: `${item.progress}%` }}
+                            />
+                          </div>
+                          {item.errorMessage && (
+                            <p className="text-[11px] text-rose-600 mt-1.5">
+                              {item.errorMessage}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Form image_urls Gallery Grid */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-semibold text-slate-800">
+                      Listing Media Gallery ({image_urls.length}{' '}
+                      {image_urls.length === 1 ? 'asset' : 'assets'})
+                    </label>
+                    <span className="text-xs text-slate-500">
+                      The top asset serves as the Primary Cover photo.
+                    </span>
+                  </div>
+
+                  {image_urls.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">
+                      No photography uploaded yet. Drop image files above or select quick presets below.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {image_urls.map((url, idx) => (
+                        <div
+                          key={`${url}-${idx}`}
+                          className="group relative rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs hover:shadow-md transition-all"
+                        >
+                          <div className="relative aspect-video w-full bg-slate-100 overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url}
+                              alt={`Listing asset ${idx + 1}`}
+                              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = SAMPLE_PRESETS[0].url;
+                              }}
+                            />
+                            {idx === 0 ? (
+                              <span className="absolute top-2 left-2 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-bold text-white inline-flex items-center gap-1 shadow-sm">
+                                <CheckCircle2 className="h-3 w-3" /> Primary Cover
+                              </span>
+                            ) : (
+                              <span className="absolute top-2 left-2 rounded-full bg-slate-900/70 backdrop-blur px-2 py-0.5 text-[10px] font-medium text-white shadow-sm">
+                                Gallery #{idx + 1}
+                              </span>
+                            )}
+                          </div>
+                          <div className="p-3 bg-white border-t border-slate-100 space-y-2">
+                            <p
+                              className="text-[10px] font-mono text-slate-500 truncate"
+                              title={url}
+                            >
+                              {url}
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              {idx !== 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setCoverImage(url)}
+                                  className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors inline-flex items-center gap-1"
+                                >
+                                  Make Cover
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(url, idx)}
+                                className="text-[11px] font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors inline-flex items-center gap-1"
+                                title="Copy asset URL to clipboard"
+                              >
+                                {copiedUrlIndex === idx ? (
+                                  <>
+                                    <Check className="h-3 w-3 text-emerald-600" /> Copied
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="h-3 w-3" /> Copy URL
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeImageUrl(idx)}
+                                className="text-[11px] font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg transition-colors ml-auto"
+                                title="Remove photo from listing"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Optional Fallback: Manual URL Input & Quick Presets */}
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-4">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Alternative: Add External CDN Image URL
+                    </span>
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        type="url"
+                        value={newGalleryInput}
+                        onChange={(e) => setNewGalleryInput(e.target.value)}
+                        placeholder="https://images.unsplash.com/..."
+                        className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={addManualImageUrl}
+                        className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors inline-flex items-center gap-1"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add URL
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Sample Photography Presets:
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                      {SAMPLE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            if (!image_urls.includes(preset.url)) {
+                              setImageUrls((prev) => [...prev, preset.url]);
+                              if (!primaryImage) setPrimaryImage(preset.url);
+                            }
+                          }}
+                          className="px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:border-emerald-500 hover:text-emerald-700 text-left truncate transition-all"
+                        >
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -1361,10 +1726,10 @@ export default function CreateListingPage() {
               <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md transition-all">
                 {/* Image & Badges */}
                 <div className="relative h-48 w-full overflow-hidden bg-slate-100">
-                  {primaryImage ? (
+                  {(image_urls[0] || primaryImage) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={primaryImage}
+                      src={image_urls[0] || primaryImage}
                       alt={title || 'Listing Preview'}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       onError={(e) => {

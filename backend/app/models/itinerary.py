@@ -28,7 +28,9 @@ if TYPE_CHECKING:
 
 class Itinerary(BaseModel):
     __tablename__ = "itineraries"
-    pass
+    __table_args__ = (
+        CheckConstraint("start_date <= end_date", name="ck_itineraries_dates"),
+    )
 
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid(as_uuid=True),

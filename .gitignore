@@ -64,3 +64,5 @@ coverage.xml
 # Build artifacts
 *.pyc
 dist/
+storage/
+backend/storage/
