@@ -209,22 +209,12 @@ export default function PartnerDashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      // Try to get operator profile by listing operators and finding the one belonging to this user
-      const ops = await apiFetch<OperatorProfile[]>('/operators?limit=100');
-      const stored = localStorage.getItem('auth_user');
-      const u: User = stored ? JSON.parse(stored) : null;
-      // We'll just get the first operator for this session (API /operators/my would be cleaner — using list for now)
-      // Get my bookings
       const myBookings = await apiFetch<Booking[]>('/bookings/my').catch(() => []);
       setBookings(myBookings);
 
-      // Get any operator that might belong to current user
-      if (ops.length > 0) {
-        // Get full operator with listings
-        const fullOp = await apiFetch<OperatorProfile>(`/operators/${ops[0].id}`);
-        setOperator(fullOp);
-      }
-    } catch {
+      const myOp = await apiFetch<OperatorProfile>('/operators/my');
+      setOperator(myOp);
+    } catch (err) {
       // Operator profile doesn't exist yet
     } finally {
       setLoading(false);

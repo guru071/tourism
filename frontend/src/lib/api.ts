@@ -215,3 +215,17 @@ export async function fetchCongestion() {
 export async function fetchRevenue() {
   return apiFetch<unknown[]>('/control-tower/revenue');
 }
+
+// ─── Partners ────────────────────────────────────────────────────────────────
+export async function getMyOperator() {
+  return apiFetch<Record<string, unknown>>('/operators/my');
+}
+
+export async function createListing(operatorId: string, data: any) {
+  return apiFetch<Record<string, unknown>>('/listings', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getOperatorBookings(operatorId: string) {
+  // Mock fetching partner bookings
+  return apiFetch<unknown[]>(`/bookings?operator_id=${operatorId}`);
+}

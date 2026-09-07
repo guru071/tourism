@@ -33,6 +33,45 @@ async def list_operators(
         }
         for op in results
     ]
+@router.get("/my")
+async def get_my_operator(
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user),
+):
+    result = await session.execute(select(Operator).where(Operator.user_id == current_user.id))
+    op = result.scalar_one_or_none()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operator profile not found")
+
+    listings_result = await session.execute(
+        select(Listing).where(Listing.operator_id == op.id, Listing.is_active == True)
+    )
+    listings = listings_result.scalars().all()
+
+    return {
+        "id": str(op.id),
+        "business_name": op.business_name,
+        "business_type": op.business_type,
+        "description": op.description,
+        "contact_email": op.contact_email,
+        "contact_phone": op.contact_phone,
+        "website_url": op.website_url,
+        "verified": op.verified,
+        "verification_status": op.verification_status,
+        "listings": [
+            {
+                "id": str(l.id),
+                "title": l.title,
+                "category": l.category,
+                "base_price": float(l.base_price),
+                "currency": l.currency,
+                "availability": l.availability,
+                "rating_average": float(l.rating_average),
+                "review_count": l.review_count,
+            }
+            for l in listings
+        ],
+    }
 
 
 @router.get("/{operator_id}")

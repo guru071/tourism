@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from typing import Optional
 
 from app.core.database import get_async_session
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user
@@ -44,6 +46,7 @@ async def register(payload: UserCreate, session: AsyncSession = Depends(get_asyn
 async def login(payload: UserLogin, session: AsyncSession = Depends(get_async_session)):
     result = await session.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
+    
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
@@ -56,3 +59,21 @@ async def login(payload: UserLogin, session: AsyncSession = Depends(get_async_se
 @router.get("/me", response_model=UserRead)
 async def get_me(current_user: User = Depends(get_current_user)):
     return UserRead.model_validate(current_user)
+
+
+@router.post("/token", response_model=Token, include_in_schema=False)
+async def swagger_login(
+    session: AsyncSession = Depends(get_async_session),
+    form_data: OAuth2PasswordRequestForm = Depends()
+):
+    """Dedicated endpoint for Swagger UI OAuth2 authentication."""
+    result = await session.execute(select(User).where(User.email == form_data.username))
+    user = result.scalar_one_or_none()
+    
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
+
+    token = create_access_token({"sub": str(user.id)})
+    return Token(access_token=token, user=UserRead.model_validate(user))
