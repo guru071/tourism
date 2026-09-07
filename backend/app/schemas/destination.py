@@ -36,6 +36,8 @@ class DestinationRead(DestinationBase):
     slug: str
     avg_rating: Optional[float] = None
     review_count: int = 0
+    recommendation_reason: Optional[str] = None
+    match_score: Optional[float] = None
 
     model_config = {"from_attributes": True}
 

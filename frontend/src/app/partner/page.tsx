@@ -260,18 +260,26 @@ export default function PartnerDashboard() {
             <div className="flex items-center gap-2 mt-1">
               <span className="text-sm text-slate-500 capitalize">{operator.business_type}</span>
               <span className="text-slate-300">·</span>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${
                 operator.verified
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : 'bg-amber-50 text-amber-700 border-amber-200'
               }`}>
-                {operator.verified ? '✓ Verified' : `⏳ ${operator.verification_status}`}
+                {operator.verified ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Verified
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-3 w-3 text-amber-600" /> {operator.verification_status}
+                  </>
+                )}
               </span>
             </div>
           </div>
           <Link
-            href="/destinations"
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors"
+            href="/partner/new-listing"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" /> Add New Listing
           </Link>
@@ -339,6 +347,12 @@ export default function PartnerDashboard() {
                   <Store className="h-10 w-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">No listings yet</p>
                   <p className="text-xs mt-1">Add your first tour or experience</p>
+                  <Link
+                    href="/partner/new-listing"
+                    className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-semibold mt-3 hover:text-emerald-500"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Create Listing
+                  </Link>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -372,7 +386,13 @@ export default function PartnerDashboard() {
             {listings.length === 0 ? (
               <div className="text-center py-16 text-slate-400">
                 <Package className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p>No listings yet. Start by browsing destinations and adding a listing.</p>
+                <p>No listings yet. Start offering your travel services on Aventis Platform.</p>
+                <Link
+                  href="/partner/new-listing"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors shadow-sm mt-4"
+                >
+                  <Plus className="h-4 w-4" /> Create Your First Listing
+                </Link>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">

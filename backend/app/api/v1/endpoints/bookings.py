@@ -10,6 +10,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.booking import Booking
 from app.models.listing import Listing
+from app.api.v1.endpoints.websockets import broadcast_booking_notification
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -55,6 +56,24 @@ async def create_booking(
     session.add(booking)
     await session.commit()
     await session.refresh(booking)
+
+    # Real-time WebSocket Control Tower notification
+    try:
+        await broadcast_booking_notification({
+            "id": str(booking.id),
+            "booking_reference": booking.booking_reference,
+            "status": booking.status,
+            "listing_title": listing.title,
+            "start_date": str(booking.start_date),
+            "end_date": str(booking.end_date),
+            "guests_count": booking.guests_count,
+            "total_price": float(booking.total_price),
+            "currency": booking.currency,
+            "event": "created",
+        })
+    except Exception:
+        pass
+
     return {
         "id": str(booking.id),
         "booking_reference": booking.booking_reference,
@@ -183,4 +202,17 @@ async def update_booking_status(
 
     booking.status = new_status
     await session.commit()
+
+    # Real-time WebSocket Control Tower notification
+    try:
+        await broadcast_booking_notification({
+            "id": str(booking.id),
+            "booking_reference": booking.booking_reference,
+            "status": booking.status,
+            "event": "status_updated",
+        })
+    except Exception:
+        pass
+
     return {"id": str(booking.id), "status": booking.status, "message": "Status updated"}
+

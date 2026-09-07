@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { register } from '@/lib/api';
-import { Loader2, AlertCircle, Compass } from 'lucide-react';
+import { Compass, Loader2, AlertCircle, Briefcase } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function RegisterPage() {
             <Compass className="h-8 w-8" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
-          <p className="text-slate-500 text-sm mt-1">Join the AI Tourism Ecosystem</p>
+          <p className="text-slate-500 text-sm mt-1">Join the Aventis Platform</p>
         </div>
 
         <div className="rounded-2xl bg-white shadow-xl p-8 border border-slate-100">
@@ -87,13 +87,21 @@ export default function RegisterPage() {
                     key={r}
                     type="button"
                     onClick={() => setRole(r)}
-                    className={`rounded-xl border py-2.5 text-sm font-medium capitalize transition-all ${
+                    className={`rounded-xl border py-2.5 text-sm font-medium capitalize transition-all flex items-center justify-center gap-1.5 ${
                       role === r
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
                         : 'border-slate-200 text-slate-600 hover:border-emerald-300'
                     }`}
                   >
-                    {r === 'tourist' ? '🧳 Tourist' : '🏨 Partner'}
+                    {r === 'tourist' ? (
+                      <>
+                        <Compass className="h-4 w-4" /> Tourist
+                      </>
+                    ) : (
+                      <>
+                        <Briefcase className="h-4 w-4" /> Partner
+                      </>
+                    )}
                   </button>
                 ))}
               </div>

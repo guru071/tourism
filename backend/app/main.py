@@ -52,5 +52,10 @@ app.add_middleware(
 # Root-level health probe
 app.include_router(health_router, prefix="", tags=["Monitoring"])
 
+# WebSocket router (supports /ws/control-tower at root level)
+from app.api.v1.endpoints.websockets import router as websockets_router
+app.include_router(websockets_router)
+
 # Versioned API Router (/api/v1)
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+

@@ -114,11 +114,14 @@ export default function ExplorePage() {
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-teal-600 to-cyan-700 text-white py-20 px-4">
         <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/hero-tourism/1920/600')] bg-cover bg-center opacity-20" />
         <div className="relative mx-auto max-w-3xl text-center space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-100 backdrop-blur border border-white/20 shadow-sm">
+            Aventis Platform
+          </div>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl drop-shadow-md">
             Discover Your Perfect Journey
           </h1>
           <p className="text-lg text-emerald-100 max-w-xl mx-auto">
-            AI-powered itineraries tailored to your travel style, budget, and dreams.
+            Aventis Platform AI-powered itineraries tailored to your travel style, budget, and dreams.
           </p>
           {/* Search bar */}
           <div className="relative max-w-lg mx-auto">

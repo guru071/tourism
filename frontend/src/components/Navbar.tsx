@@ -46,7 +46,7 @@ export default function Navbar() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-sm">
             <Compass className="h-5 w-5" />
           </div>
-          <span className="font-bold text-slate-900 text-base">TourismOS</span>
+          <span className="font-bold text-slate-900 text-base">Aventis Platform</span>
         </Link>
 
         {/* Desktop Nav */}

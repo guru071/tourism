@@ -125,6 +125,8 @@ async def create_listing(
         currency=payload.get("currency", "USD"),
         capacity=payload.get("capacity"),
         duration_hours=Decimal(str(payload["duration_hours"])) if payload.get("duration_hours") else None,
+        latitude=Decimal(str(payload["latitude"])) if payload.get("latitude") is not None and str(payload.get("latitude")).strip() != "" else None,
+        longitude=Decimal(str(payload["longitude"])) if payload.get("longitude") is not None and str(payload.get("longitude")).strip() != "" else None,
         images=payload.get("images", []),
         amenities=payload.get("amenities", []),
     )

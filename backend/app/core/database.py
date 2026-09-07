@@ -40,3 +40,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
+
+
+# Alias for compatibility across endpoints
+get_async_session = get_db
+

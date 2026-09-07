@@ -1,5 +1,5 @@
 /**
- * Centralized API client for the AI Tourism Ecosystem.
+ * Centralized API client for the Aventis Platform.
  * Reads NEXT_PUBLIC_API_URL from environment.
  */
 
@@ -237,8 +237,27 @@ export async function getMyOperator() {
   return apiFetch<Record<string, unknown>>('/operators/my');
 }
 
-export async function createListing(operatorId: string, data: any) {
-  return apiFetch<Record<string, unknown>>('/listings', { method: 'POST', body: JSON.stringify(data) });
+export interface CreateListingPayload {
+  destination_id: string;
+  title: string;
+  category: string;
+  description: string;
+  base_price: number;
+  currency: string;
+  capacity?: number;
+  duration_hours?: number;
+  latitude?: number;
+  longitude?: number;
+  location?: string;
+  images?: string[];
+  amenities?: string[];
+}
+
+export async function createListing(data: CreateListingPayload) {
+  return apiFetch<{ id: string; title: string; slug: string }>('/listings', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 export async function getOperatorBookings(operatorId: string) {

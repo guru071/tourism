@@ -14,6 +14,7 @@ from app.api.v1.endpoints import uploads
 from app.api.v1.endpoints import payments
 from app.api.v1.endpoints import users
 from app.api.v1.endpoints import chat
+from app.api.v1.endpoints import websockets
 
 api_v1_router = APIRouter()
 
@@ -25,7 +26,7 @@ async def api_v1_root() -> dict:
     return {
         "message": "Welcome to the AI Tourism API v1",
         "status": "active",
-        "modules": ["auth", "destinations", "itineraries", "operators", "listings", "bookings", "reviews", "control-tower"],
+        "modules": ["auth", "destinations", "itineraries", "operators", "listings", "bookings", "reviews", "control-tower", "websockets"],
     }
 
 
@@ -44,4 +45,5 @@ api_v1_router.include_router(uploads.router)
 api_v1_router.include_router(payments.router)
 api_v1_router.include_router(users.router)
 api_v1_router.include_router(chat.router)
+api_v1_router.include_router(websockets.router)
 
