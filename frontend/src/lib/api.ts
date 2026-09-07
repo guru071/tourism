@@ -232,7 +232,35 @@ export async function verifyOperator(operatorId: string, status: string) {
   return apiFetch<Record<string, unknown>>(`/operators/${operatorId}/verify`, { method: 'PATCH', body: JSON.stringify({ status }) });
 }
 
-// ─── Partners ────────────────────────────────────────────────────────────────
+// ─── Partners & Listings ─────────────────────────────────────────────────────
+
+export interface Listing {
+  id: string;
+  operator_id: string;
+  destination_id: string;
+  title: string;
+  category: string;
+  description: string;
+  base_price: number;
+  currency: string;
+  availability: boolean;
+  capacity?: number | null;
+  duration_hours?: number | null;
+  images?: string[];
+  amenities?: string[];
+  rating_average?: number;
+  review_count?: number;
+}
+
+export async function fetchListings(destination_id?: string): Promise<Listing[]> {
+  const query = destination_id ? `?destination_id=${encodeURIComponent(destination_id)}` : '';
+  return apiFetch<Listing[]>(`/listings${query}`);
+}
+
+export async function fetchListing(listing_id: string): Promise<Listing> {
+  return apiFetch<Listing>(`/listings/${listing_id}`);
+}
+
 export async function getMyOperator() {
   return apiFetch<Record<string, unknown>>('/operators/my');
 }
@@ -260,9 +288,88 @@ export async function createListing(data: CreateListingPayload) {
   });
 }
 
+// ─── Bookings & Payments ─────────────────────────────────────────────────────
+
+export interface Booking {
+  id: string;
+  booking_reference: string;
+  status: string;
+  listing_title?: string;
+  listing_id?: string;
+  start_date: string;
+  end_date: string;
+  guests_count: number;
+  total_price: number;
+  currency: string;
+}
+
+export interface CreateBookingOptions {
+  check_in_date?: string;
+  check_out_date?: string;
+  num_guests?: number;
+  special_requests?: string;
+}
+
+export async function createBooking(
+  listing_id: string,
+  options?: CreateBookingOptions | string,
+  check_out_date?: string,
+  num_guests: number = 1,
+  special_requests?: string
+): Promise<Booking> {
+  let checkIn = '';
+  let checkOut = '';
+  let guests = 1;
+  let requests: string | undefined;
+
+  if (typeof options === 'object' && options !== null) {
+    checkIn = options.check_in_date || '';
+    checkOut = options.check_out_date || '';
+    guests = options.num_guests ?? 1;
+    requests = options.special_requests;
+  } else if (typeof options === 'string') {
+    checkIn = options;
+    checkOut = check_out_date || '';
+    guests = num_guests;
+    requests = special_requests;
+  }
+
+  if (!checkIn) {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    checkIn = d.toISOString().split('T')[0];
+  }
+  if (!checkOut) {
+    const d = new Date(checkIn);
+    d.setDate(d.getDate() + 2);
+    checkOut = d.toISOString().split('T')[0];
+  }
+
+  return apiFetch<Booking>('/bookings', {
+    method: 'POST',
+    body: JSON.stringify({
+      listing_id,
+      check_in_date: checkIn,
+      check_out_date: checkOut,
+      num_guests: guests,
+      special_requests: requests,
+    }),
+  });
+}
+
 export async function getOperatorBookings(operatorId: string) {
-  // Mock fetching partner bookings
-  return apiFetch<unknown[]>(`/bookings?operator_id=${operatorId}`);
+  return apiFetch<Booking[]>(`/bookings?operator_id=${operatorId}`);
+}
+
+export interface CheckoutSessionResponse {
+  checkout_url: string;
+}
+
+export async function createCheckoutSession(booking_id: string): Promise<CheckoutSessionResponse> {
+  return apiFetch<CheckoutSessionResponse>('/payments/create-checkout-session', {
+    method: 'POST',
+    body: JSON.stringify({ booking_id }),
+  });
 }
 
 // ─── Chat Assistant ──────────────────────────────────────────────────────────
